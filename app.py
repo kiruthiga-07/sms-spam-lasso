@@ -48,10 +48,10 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # -----------------------------
-# Lasso Feature Selection Function
+# Lasso Feature Selection
 # -----------------------------
 def lasso_feature_selection(alpha):
-    lasso = Lasso(alpha=alpha)
+    lasso = Lasso(alpha=alpha, max_iter=5000)
     lasso.fit(X_train.toarray(), y_train)
 
     coef = lasso.coef_
@@ -63,36 +63,44 @@ def lasso_feature_selection(alpha):
     return selected, non_zero, zero
 
 # -----------------------------
-# Alpha = 0.1 (Main Model)
+# MAIN MODEL (alpha = 0.001 FIXED)
 # -----------------------------
-selected_01, non_zero_01, zero_01 = lasso_feature_selection(0.1)
+selected_main, non_zero_main, zero_main = lasso_feature_selection(0.001)
 
-st.subheader("📉 Lasso Feature Selection (alpha = 0.1)")
-st.write(f"✅ Selected features: {non_zero_01}")
-st.write(f"❌ Eliminated features: {zero_01}")
+st.subheader("📉 Lasso Feature Selection (alpha = 0.001)")
+st.write(f"✅ Selected features: {non_zero_main}")
+st.write(f"❌ Eliminated features: {zero_main}")
+
+# -----------------------------
+# Safety Check (VERY IMPORTANT)
+# -----------------------------
+if non_zero_main == 0:
+    st.error("⚠️ All features eliminated. Reduce alpha further (try 0.0001).")
+    st.stop()
 
 # -----------------------------
 # Alpha Comparison
 # -----------------------------
-_, non_zero_001, _ = lasso_feature_selection(0.01)
-_, non_zero_1, _ = lasso_feature_selection(1)
+_, nz_0001, _ = lasso_feature_selection(0.0001)
+_, nz_001, _ = lasso_feature_selection(0.001)
+_, nz_01, _ = lasso_feature_selection(0.01)
 
 st.subheader("📊 Alpha Comparison")
-st.write(f"Alpha 0.01 → {non_zero_001} features selected")
-st.write(f"Alpha 0.1  → {non_zero_01} features selected")
-st.write(f"Alpha 1    → {non_zero_1} features selected")
+st.write(f"Alpha 0.0001 → {nz_0001} features")
+st.write(f"Alpha 0.001  → {nz_001} features")
+st.write(f"Alpha 0.01   → {nz_01} features")
 
 # -----------------------------
 # Feature Reduction %
 # -----------------------------
-reduction = ((total_features - non_zero_01) / total_features) * 100
+reduction = ((total_features - non_zero_main) / total_features) * 100
 st.write(f"📉 Feature Reduction: {reduction:.2f}%")
 
 # -----------------------------
 # Reduce Features
 # -----------------------------
-X_train_sel = X_train[:, selected_01]
-X_test_sel = X_test[:, selected_01]
+X_train_sel = X_train[:, selected_main]
+X_test_sel = X_test[:, selected_main]
 
 # -----------------------------
 # Train Logistic Regression
@@ -101,7 +109,7 @@ clf = LogisticRegression(max_iter=1000)
 clf.fit(X_train_sel, y_train)
 
 # -----------------------------
-# Predictions
+# Model Evaluation
 # -----------------------------
 y_pred = clf.predict(X_test_sel)
 accuracy = accuracy_score(y_test, y_pred)
@@ -110,13 +118,13 @@ st.subheader("📈 Model Accuracy")
 st.write(f"Accuracy: {accuracy:.2f}")
 
 # -----------------------------
-# Show Sample Predictions
+# Sample Predictions
 # -----------------------------
 st.subheader("📋 Sample Predictions")
 
 sample_df = df.iloc[:10].copy()
 sample_vec = vectorizer.transform(sample_df['message'])
-sample_vec_sel = sample_vec[:, selected_01]
+sample_vec_sel = sample_vec[:, selected_main]
 sample_pred = clf.predict(sample_vec_sel)
 
 sample_df['Predicted'] = sample_pred
@@ -136,7 +144,7 @@ if st.button("Predict"):
         st.warning("Please enter a message")
     else:
         input_vec = vectorizer.transform([user_input])
-        input_vec_sel = input_vec[:, selected_01]
+        input_vec_sel = input_vec[:, selected_main]
 
         pred = clf.predict(input_vec_sel)[0]
 
